@@ -23,21 +23,12 @@ import css from "./App.module.css";
  * Головний компонент програми.
  */
 const App = () => {
-    // Стан для поточної сторінки пагінації.
     const [page, setPage] = useState<number>(1);
-    // Стан для пошукового запиту.
     const [searchQuery, setSearchQuery] = useState<string>("");
-    // Стан для видимості модального вікна.
     const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-
-    // Використовуємо useDebounce для затримки виконання пошукового запиту.
     const [debouncedQuery] = useDebounce(searchQuery, 500);
-
-    // Отримуємо клієнт TanStack Query для інвалідації кешу.
     const queryClient = useQueryClient();
 
-    // Запит на отримання нотаток за допомогою useQuery.
-    // Ключ запиту містить сторінку та пошуковий запит, щоб кеш оновлювався при їх зміні.
     const {
         data: notesData,
         isLoading,
@@ -48,25 +39,21 @@ const App = () => {
         queryFn: () => fetchNotes({ page, query: debouncedQuery }),
     });
 
-    // Мутація для створення нової нотатки.
     const createNoteMutation = useMutation({
         mutationFn: createNote,
         onSuccess: () => {
-            // При успішному створенні, інвалідуємо кеш нотаток, щоб отримати оновлений список.
             queryClient.invalidateQueries({ queryKey: ["notes"] });
             toast.success("Note created successfully!");
-            closeModal(); // Закриваємо модальне вікно.
+            closeModal();
         },
         onError: (err) => {
             toast.error(`Failed to create note: ${err.message}`);
         },
     });
 
-    // Мутація для видалення нотатки.
     const deleteNoteMutation = useMutation({
         mutationFn: deleteNote,
         onSuccess: () => {
-            // При успішному видаленні, інвалідуємо кеш.
             queryClient.invalidateQueries({ queryKey: ["notes"] });
             toast.success("Note deleted successfully!");
         },
@@ -75,16 +62,18 @@ const App = () => {
         },
     });
 
-    // Обробник для зміни сторінки пагінації.
+    // Обробник видалення нотатки.
+    const handleDeleteNote = (noteId: string) => {
+        deleteNoteMutation.mutate(noteId);
+    };
+
     const handlePageClick = (event: { selected: number }): void => {
         setPage(event.selected + 1);
     };
 
-    // Обробники для відкриття та закриття модального вікна.
     const openModal = (): void => setIsModalOpen(true);
     const closeModal = (): void => setIsModalOpen(false);
 
-    // Обробник для сабміту форми створення нотатки.
     const handleCreateNote = (values: NewNotePayload): void => {
         createNoteMutation.mutate(values);
     };
@@ -110,7 +99,8 @@ const App = () => {
                 {notesData && notesData.notes.length > 0 && (
                     <NoteList
                         notes={notesData.notes}
-                        onDelete={deleteNoteMutation.mutate}
+                        // Ми передаємо нашу нову функцію-обгортку.
+                        onDelete={handleDeleteNote}
                     />
                 )}
             </main>

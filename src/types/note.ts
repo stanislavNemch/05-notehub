@@ -3,7 +3,7 @@ export type NoteTag = "Todo" | "Work" | "Personal" | "Meeting" | "Shopping";
 
 // Описуємо інтерфейс для однієї нотатки, який відповідає структурі даних з бекенду.
 export interface Note {
-    _id: string;
+    id: string;
     title: string;
     content: string;
     tag: NoteTag;
