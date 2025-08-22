@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDebounce } from "use-debounce";
 import toast from "react-hot-toast";
@@ -67,8 +67,13 @@ const App = () => {
         deleteNoteMutation.mutate(noteId);
     };
 
+    // Скидаємо сторінку при зміні пошуку, щоб уникнути невідповідностей
+    useEffect(() => {
+        setPage(1);
+    }, [debouncedQuery]);
+
     const handlePageClick = (event: { selected: number }): void => {
-        setPage(event.selected + 1);
+        setPage(event.selected + 1); // backend 1-based
     };
 
     const openModal = (): void => setIsModalOpen(true);
@@ -85,6 +90,7 @@ const App = () => {
                 {notesData && notesData.totalPages > 1 && (
                     <Pagination
                         pageCount={notesData.totalPages}
+                        currentPage={page}
                         onPageChange={handlePageClick}
                     />
                 )}
