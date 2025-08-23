@@ -6,10 +6,11 @@ import {
 } from "formik";
 import * as Yup from "yup";
 import css from "./NoteForm.module.css";
-import type { NewNotePayload } from "../../services/noteService";
-import type { NoteTag } from "../../types/note";
+import type { Note, NoteTag } from "../../types/note";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createNote, type NewNotePayload } from "../../services/noteService";
 
-// Схема валідації для форми за допомогою Yup.
+// Схема валідації форми
 const validationSchema = Yup.object({
     title: Yup.string()
         .min(3, "Title must be at least 3 characters")
@@ -24,34 +25,42 @@ const validationSchema = Yup.object({
         .required("Tag is required"),
 });
 
-// Початкові значення для полів форми.
+// Початкові значення форми
 const initialValues: NewNotePayload = {
     title: "",
     content: "",
     tag: "Todo",
 };
 
-// Інтерфейс для пропсів компонента NoteForm.
+// Пропси: onCancel для закриття; onCreated — щоб батько (App) міг показати toast
 interface NoteFormProps {
-    // Функція, що викликається при сабміті форми.
-    onSubmit: (values: NewNotePayload) => void;
-    // Функція для скасування та закриття форми.
     onCancel: () => void;
-    // Прапорець, що вказує, чи триває процес відправки форми.
-    isSubmitting: boolean;
+    onCreated?: (note: Note) => void; // повідомити App про успіх
 }
 
 /**
- * Компонент форми для створення нової нотатки.
- * @param {NoteFormProps} props - Пропси компонента.
+ * Форма створення нотатки з інтеграцією TanStack Query.
  */
-const NoteForm = ({ onSubmit, onCancel, isSubmitting }: NoteFormProps) => {
+const NoteForm = ({ onCancel, onCreated }: NoteFormProps) => {
+    const queryClient = useQueryClient();
+
+    const createMutation = useMutation({
+        mutationFn: createNote,
+        onSuccess: (data) => {
+            // інвалідовуємо список і закриваємо модалку
+            queryClient.invalidateQueries({ queryKey: ["notes"] });
+            onCancel();
+            // Сповіщаємо App про успіх (для toast)
+            onCreated?.(data);
+        },
+    });
+
     return (
         <Formik
             initialValues={initialValues}
             validationSchema={validationSchema}
             onSubmit={(values, actions) => {
-                onSubmit(values);
+                createMutation.mutate(values);
                 actions.resetForm();
             }}
         >
@@ -120,9 +129,11 @@ const NoteForm = ({ onSubmit, onCancel, isSubmitting }: NoteFormProps) => {
                         <button
                             type="submit"
                             className={css.submitButton}
-                            disabled={!isValid || isSubmitting}
+                            disabled={!isValid || createMutation.isPending}
                         >
-                            {isSubmitting ? "Creating..." : "Create note"}
+                            {createMutation.isPending
+                                ? "Creating..."
+                                : "Create note"}
                         </button>
                     </div>
                 </Form>

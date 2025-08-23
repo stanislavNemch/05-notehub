@@ -1,22 +1,33 @@
 import type { Note } from "../../types/note";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { deleteNote } from "../../services/noteService";
 import css from "./NoteList.module.css";
 
-// Інтерфейс для пропсів компонента NoteList.
+// Пропси: onDeleted — щоб батько (App) міг показати toast
 interface NoteListProps {
-    // Масив нотаток для відображення.
     notes: Note[];
-    // Функція для обробки видалення нотатки.
-    onDelete: (noteId: string) => void;
+    onDeleted?: (note: Note) => void; // повідомити App про успіх
 }
 
 /**
- * Компонент для відображення списку нотаток.
- * @param {NoteListProps} props - Пропси компонента.
+ * Список нотаток з інтегрованим видаленням через TanStack Query.
  */
-const NoteList = ({ notes, onDelete }: NoteListProps) => {
+const NoteList = ({ notes, onDeleted }: NoteListProps) => {
+    const queryClient = useQueryClient();
+
+    const deleteMutation = useMutation({
+        mutationFn: deleteNote,
+        onSuccess: (data) => {
+            // інвалідовуємо список після видалення
+            queryClient.invalidateQueries({ queryKey: ["notes"] });
+            // Сповіщаємо App про успіх (для toast)
+            onDeleted?.(data);
+        },
+    });
+
     return (
         <ul className={css.list}>
-            {/* Перебираємо масив нотаток. Деструктуруємо id з кожного об'єкта note.*/}
+            {/* унікальний ключ — id з бекенду */}
             {notes.map(({ id, title, content, tag }) => (
                 <li key={id} className={css.listItem}>
                     <div>
@@ -25,12 +36,14 @@ const NoteList = ({ notes, onDelete }: NoteListProps) => {
                     </div>
                     <div className={css.footer}>
                         <span className={css.tag}>{tag}</span>
-                        {/* Викликаємо onDelete з id конкретної нотатки під час кліку */}
                         <button
                             className={css.button}
-                            onClick={() => onDelete(id)}
+                            onClick={() => deleteMutation.mutate(id)}
+                            disabled={deleteMutation.isPending}
                         >
-                            Delete
+                            {deleteMutation.isPending
+                                ? "Deleting..."
+                                : "Delete"}
                         </button>
                     </div>
                 </li>

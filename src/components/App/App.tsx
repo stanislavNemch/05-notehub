@@ -1,13 +1,8 @@
 import { useEffect, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query"; // для плавної пагінації
 import { useDebounce } from "use-debounce";
 import toast from "react-hot-toast";
-import {
-    fetchNotes,
-    createNote,
-    deleteNote,
-    type NewNotePayload,
-} from "../../services/noteService";
+import { fetchNotes } from "../../services/noteService";
 
 import NoteList from "../NoteList/NoteList";
 import SearchBox from "../SearchBox/SearchBox";
@@ -20,14 +15,21 @@ import ErrorMessage from "../ErrorMessage/ErrorMessage";
 import css from "./App.module.css";
 
 /**
- * Головний компонент програми.
+ * Головний компонент застосунку.
+ * - toast показуємо тут (у батька) при успішних створенні/видаленні.
+ * - Loader показуємо лише при початковому завантаженні (без isFetching), щоб не миготів.
+ * - Плавна пагінація через placeholderData: keepPreviousData.
  */
 const App = () => {
     const [page, setPage] = useState<number>(1);
     const [searchQuery, setSearchQuery] = useState<string>("");
     const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
     const [debouncedQuery] = useDebounce(searchQuery, 500);
-    const queryClient = useQueryClient();
+
+    // Скидаємо сторінку при зміні пошуку
+    useEffect(() => {
+        setPage(1);
+    }, [debouncedQuery]);
 
     const {
         data: notesData,
@@ -37,50 +39,22 @@ const App = () => {
     } = useQuery({
         queryKey: ["notes", page, debouncedQuery],
         queryFn: () => fetchNotes({ page, query: debouncedQuery }),
+        placeholderData: keepPreviousData, // плавна пагінація без миготіння
     });
-
-    const createNoteMutation = useMutation({
-        mutationFn: createNote,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["notes"] });
-            toast.success("Note created successfully!");
-            closeModal();
-        },
-        onError: (err) => {
-            toast.error(`Failed to create note: ${err.message}`);
-        },
-    });
-
-    const deleteNoteMutation = useMutation({
-        mutationFn: deleteNote,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["notes"] });
-            toast.success("Note deleted successfully!");
-        },
-        onError: (err) => {
-            toast.error(`Failed to delete note: ${err.message}`);
-        },
-    });
-
-    // Обробник видалення нотатки.
-    const handleDeleteNote = (noteId: string) => {
-        deleteNoteMutation.mutate(noteId);
-    };
-
-    // Скидаємо сторінку при зміні пошуку, щоб уникнути невідповідностей
-    useEffect(() => {
-        setPage(1);
-    }, [debouncedQuery]);
 
     const handlePageClick = (event: { selected: number }): void => {
-        setPage(event.selected + 1); // backend 1-based
+        setPage(event.selected + 1);
     };
 
     const openModal = (): void => setIsModalOpen(true);
     const closeModal = (): void => setIsModalOpen(false);
 
-    const handleCreateNote = (values: NewNotePayload): void => {
-        createNoteMutation.mutate(values);
+    // Колбеки успіху для дочірніх компонентів — тут показуємо toast
+    const handleCreated = () => {
+        toast.success("Note created successfully!");
+    };
+    const handleDeleted = () => {
+        toast.success("Note deleted successfully!");
     };
 
     return (
@@ -100,23 +74,19 @@ const App = () => {
             </header>
 
             <main>
+                {/* Loader тільки при первинному завантаженні, без isFetching */}
                 {isLoading && <Loader />}
                 {isError && <ErrorMessage message={error?.message} />}
                 {notesData && notesData.notes.length > 0 && (
                     <NoteList
                         notes={notesData.notes}
-                        // Ми передаємо нашу нову функцію-обгортку.
-                        onDelete={handleDeleteNote}
+                        onDeleted={handleDeleted}
                     />
                 )}
             </main>
 
             <Modal isOpen={isModalOpen} onClose={closeModal}>
-                <NoteForm
-                    onSubmit={handleCreateNote}
-                    onCancel={closeModal}
-                    isSubmitting={createNoteMutation.isPending}
-                />
+                <NoteForm onCancel={closeModal} onCreated={handleCreated} />
             </Modal>
         </div>
     );

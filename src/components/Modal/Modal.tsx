@@ -16,45 +16,40 @@ interface ModalProps {
 }
 
 /**
- * Універсальний компонент модального вікна.
- * @param {ModalProps} props - Пропси компонента.
- * @returns {React.ReactPortal | null} - Портал з модальним вікном або null.
+ * Модальне вікно.
+ * - Закриття по Esc/бекдроп.
+ * - блокуємо прокручування body, коли модалка відкрита.
  */
 const Modal = ({
     isOpen,
     onClose,
     children,
 }: ModalProps): React.ReactPortal | null => {
-    // Ефект для обробки натискання клавіші Escape.
+    // Обробка клавіші Escape
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "Escape") {
-                onClose();
-            }
+            if (e.key === "Escape") onClose();
         };
-
-        if (isOpen) {
-            window.addEventListener("keydown", handleKeyDown);
-        }
-
-        // Прибираємо обробник події при розмонтуванні компонента або при зміні стану.
-        return () => {
-            window.removeEventListener("keydown", handleKeyDown);
-        };
+        if (isOpen) window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
     }, [isOpen, onClose]);
 
-    // Обробник кліку по бекдропу для закриття модального вікна.
+    // Блокування прокрутки фону під час відкритої модалки
+    useEffect(() => {
+        if (!isOpen) return;
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden"; // заблокувати скролл фону
+        return () => {
+            document.body.style.overflow = prevOverflow;
+        };
+    }, [isOpen]);
+
     const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (e.target === e.currentTarget) {
-            onClose();
-        }
+        if (e.target === e.currentTarget) onClose();
     };
 
-    if (!isOpen) {
-        return null;
-    }
+    if (!isOpen) return null;
 
-    // Використовуємо createPortal для рендерингу модального вікна поза основним DOM-деревом.
     return createPortal(
         <div
             className={css.backdrop}

@@ -1,19 +1,15 @@
 import ReactPaginate from "react-paginate";
 import css from "./Pagination.module.css";
 
-// Інтерфейс для пропсів компонента Pagination.
+// Додаємо керовану поточну сторінку
 interface PaginationProps {
-    // Загальна кількість сторінок.
     pageCount: number;
-    // Функція, що викликається при зміні сторінки.
     onPageChange: (selectedItem: { selected: number }) => void;
-    // додамо керовану поточну сторінку (1-based з App)
-    currentPage: number;
+    currentPage: number; // 1-based із батьківського стану
 }
 
 /**
- * Компонент для навігації по сторінках.
- * @param {PaginationProps} props - Пропси компонента.
+ * Керована пагінація: синхронізуємо виділення через forcePage (0-based).
  */
 const Pagination = ({
     pageCount,
@@ -29,7 +25,7 @@ const Pagination = ({
             marginPagesDisplayed={2}
             pageRangeDisplayed={3}
             onPageChange={onPageChange}
-            forcePage={Math.max(0, (currentPage ?? 1) - 1)}
+            forcePage={Math.max(0, (currentPage || 1) - 1)} // кероване виділення сторінки
             containerClassName={css.pagination}
             activeClassName={css.active}
             pageLinkClassName={css.pageLink}
