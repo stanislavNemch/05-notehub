@@ -12,15 +12,15 @@ import "./index.css";
 const queryClient = new QueryClient();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
-    <React.StrictMode>
-        {/* Надаємо доступ до queryClient усім дочірнім компонентам 
+  <React.StrictMode>
+    {/* Надаємо доступ до queryClient усім дочірнім компонентам 
       через QueryClientProvider.
     */}
-        <QueryClientProvider client={queryClient}>
-            <App />
-            <Toaster position="top-right" />
-            {/* Інструменти розробника для TanStack Query */}
-            <ReactQueryDevtools initialIsOpen={false} />
-        </QueryClientProvider>
-    </React.StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <App />
+      <Toaster position="top-right" />
+      {/* DevTools are automatically excluded from production builds */}
+      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+    </QueryClientProvider>
+  </React.StrictMode>,
 );
